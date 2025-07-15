@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.skripsi.koma.dto.ApiResponse;
+import com.skripsi.koma.dto.approval.ApprovalDTO;
 import com.skripsi.koma.dto.property.PropertyDTO;
 import com.skripsi.koma.service.property.PropertyRatingService;
 import com.skripsi.koma.dto.property.PropertyPhotoDTO;
@@ -91,6 +92,20 @@ public class PropertyController {
     @PreAuthorize("hasAuthority('PENGHUNI')")
     public ResponseEntity<ApiResponse> rateProperty(@PathVariable Long id, @RequestParam int rating) {
         return ResponseEntity.ok(propertyRatingService.giveOrUpdateRating(id, rating));
+    }
+
+    @PostMapping("/{id}/apply-keeper")
+    @PreAuthorize("hasAuthority('PENJAGA_KOS')")
+    public ResponseEntity<ApiResponse<Void>> applyAsPropertyKeeper(@PathVariable Long id) {
+        ApiResponse<Void> response = propertyService.applyAsPropertyKeeper(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAnyAuthority('PEMILIK_KOS')")
+    @PutMapping("/keeper/{id}/approval")
+    public ResponseEntity<ApiResponse<Void>> approvalPropertyKeeper(@PathVariable Long id,
+        @RequestBody ApprovalDTO approvalDTO) {
+      return ResponseEntity.ok(propertyService.approvalBooking(id, approvalDTO));
     }
 
 }

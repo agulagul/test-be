@@ -20,7 +20,7 @@ import com.midtrans.Midtrans;
 import com.midtrans.httpclient.SnapApi;
 import com.midtrans.httpclient.error.MidtransError;
 import com.skripsi.koma.dto.ApiResponse;
-import com.skripsi.koma.dto.billing.BillingApprovalDTO;
+import com.skripsi.koma.dto.approval.ApprovalDTO;
 import com.skripsi.koma.dto.billing.BillingDetailDTO;
 import com.skripsi.koma.dto.billing.BillingRequestDTO;
 import com.skripsi.koma.dto.notification.NotificationDTO;
@@ -206,7 +206,7 @@ public class BillingService {
     return apiResponse;
   }
 
-  public ApiResponse<Void> approvalBooking(Long id, BillingApprovalDTO billingApprovalDTO) {
+  public ApiResponse<Void> approvalBooking(Long id, ApprovalDTO approvalDTO) {
     ApiResponse<Void> apiResponse = new ApiResponse<>();
     BillingModel billing = billingRepository.findById(id).orElse(null);
     if (billing == null) {
@@ -214,10 +214,11 @@ public class BillingService {
     }
     UnitModel unit = billing.getUnit();
 
-    if (billingApprovalDTO.getDecision().equals(ApprovalStatus.APPROVE)) {
+    if (approvalDTO.getDecision().equals(ApprovalStatus.APPROVE)) {
       billing.setStatusBilling(BillingStatus.PENDING_PAYMENT);
       NotificationDTO notificationRequest = new NotificationDTO();
       notificationRequest.setUnitId(unit.getId());
+      notificationRequest.setPropertyId(id);
       notificationRequest.setUserId(billing.getOccupant().getId());
       notificationRequest.setBillingId(billing.getId());
       notificationRequest.setNotificationCategory("BOOKING-APPROVED");
@@ -228,6 +229,7 @@ public class BillingService {
       billing.setStatusBilling(BillingStatus.BOOKING_REJECTED);
       NotificationDTO notificationRequest = new NotificationDTO();
       notificationRequest.setUnitId(unit.getId());
+      notificationRequest.setPropertyId(id);
       notificationRequest.setUserId(billing.getOccupant().getId());
       notificationRequest.setBillingId(billing.getId());
       notificationRequest.setNotificationCategory("BOOKING-REJECTED");
@@ -488,6 +490,8 @@ public class BillingService {
           NotificationDTO notificationRequest = new NotificationDTO();
           notificationRequest.setBillingId(billing.getId());
           notificationRequest.setUserId(billing.getOccupant().getId());
+          notificationRequest.setPropertyId(billing.getProperty().getId());
+          notificationRequest.setUnitId(billing.getUnit().getId());
           notificationRequest.setNotificationCategory("PAYMENT");
           notificationRequest.setContent("Pembayaran tagihan bulanan anda telah berhasil");
           notificationService.createNotification(notificationRequest);
@@ -524,6 +528,8 @@ public class BillingService {
         unitRepository.save(unit);
         NotificationDTO notificationRequest = new NotificationDTO();
         notificationRequest.setBillingId(billing.getId());
+        notificationRequest.setPropertyId(billing.getProperty().getId());
+        notificationRequest.setUnitId(billing.getUnit().getId());
         notificationRequest.setUserId(billing.getOccupant().getId());
         notificationRequest.setNotificationCategory("PAYMENT");
         notificationRequest.setContent("Pembayaran booking kamar anda telah berhasil");
@@ -574,6 +580,8 @@ public class BillingService {
         billing.setStatusBilling(BillingStatus.PAID);
         NotificationDTO notificationRequest = new NotificationDTO();
         notificationRequest.setBillingId(billing.getId());
+        notificationRequest.setPropertyId(billing.getProperty().getId());
+        notificationRequest.setUnitId(billing.getUnit().getId());
         notificationRequest.setUserId(billing.getOccupant().getId());
         notificationRequest.setNotificationCategory("PAYMENT");
         notificationRequest.setContent("Pembayaran tagihan bulanan anda telah berhasil");

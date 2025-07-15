@@ -1,7 +1,7 @@
 package com.skripsi.koma.controller;
 
 import com.skripsi.koma.dto.ApiResponse;
-import com.skripsi.koma.dto.billing.BillingApprovalDTO;
+import com.skripsi.koma.dto.approval.ApprovalDTO;
 import com.skripsi.koma.dto.billing.BillingDetailDTO;
 import com.skripsi.koma.dto.billing.BillingRequestDTO;
 import java.util.List;
@@ -52,7 +52,7 @@ public class BillingController {
   @PreAuthorize("hasAnyAuthority('PEMILIK_KOS')")
   @PutMapping("/{id}/approval")
   public ResponseEntity<ApiResponse<Void>> approvalBooking(@PathVariable Long id,
-      @RequestBody BillingApprovalDTO bookingApprovalDTO) {
+      @RequestBody ApprovalDTO bookingApprovalDTO) {
     return ResponseEntity.ok(billingService.approvalBooking(id, bookingApprovalDTO));
   }
 

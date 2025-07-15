@@ -35,6 +35,9 @@ public class NotificationDTO {
   @JsonProperty(value = "billing_id")
   private Long billingId;
 
+  @JsonProperty(value = "property_keeper_id")
+  private Long propertyKeeperId;
+
   @JsonProperty(value = "notification_category")
   private String notificationCategory;
 
@@ -43,6 +46,9 @@ public class NotificationDTO {
 
   @JsonProperty(value = "user_detail", access = JsonProperty.Access.READ_ONLY)
   private UserDetailDTO userDetail;
+
+  @JsonProperty(value = "user_create")
+  private String userCreate;
 
   @JsonProperty(value = "date_create", access = JsonProperty.Access.READ_ONLY)
   @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
@@ -68,8 +74,14 @@ public class NotificationDTO {
     if (notification.getBilling() != null) {
       dto.setBillingId(notification.getBilling().getId());
     }
-    dto.setUserId(notification.getUser() != null ? notification.getUser().getId() : null);
-    dto.setUserDetail(UserDetailDTO.mapToDTO(notification.getUser()));
+    if (notification.getPropertyKeeper() != null) {
+      dto.setPropertyKeeperId(notification.getPropertyKeeper().getId());
+    }
+    if(notification.getUser() != null) {
+      dto.setUserId(notification.getUser().getId());
+      dto.setUserDetail(UserDetailDTO.mapToDTO(notification.getUser()));
+    }
+    dto.setUserCreate(notification.getUserCreate());
     dto.setDateCreate(notification.getDateCreate());
     dto.setDateUpdate(notification.getDateUpdate());
     return dto;

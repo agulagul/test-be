@@ -107,7 +107,7 @@ public class UnitService {
     }
     return new ApiResponse<>(true, "Kamar berhasil dibuat!", UnitDetailDTO.mapToDTO(unit));
   }
-  
+
   public ApiResponse generateReferralLink(Long unitId) {
       UserModel referrer = userService.getUser();
       UnitModel kamar = unitRepository.findById(unitId).orElseThrow();
@@ -142,6 +142,47 @@ public class UnitService {
       }
       unit.setPhotos(photoModels);
       unitPhotoRepository.saveAll(photoModels);
+    }
+    // Handle unit facilities update
+    if (request.getFacilities() != null) {
+      List<UnitFacilityModel> updatedFacilities = new ArrayList<>();
+      List<Long> payloadFacilityIds = new ArrayList<>();
+      for (FacilityDTO fasilitasDTO : request.getFacilities()) {
+        if (fasilitasDTO.getFacilityId() != null) {
+          payloadFacilityIds.add(fasilitasDTO.getFacilityId());
+        }
+      }
+      // Remove facilities not in payload (by id)
+      if (unit.getFacilities() != null) {
+        unit.getFacilities().removeIf(uf -> uf.getId() != null && !payloadFacilityIds.contains(uf.getId()));
+      }
+      // Update/insert facilities from payload
+      for (FacilityDTO fasilitasDTO : request.getFacilities()) {
+        FacilityCategoryModel facilityCategory = facilityCategoryRepository.findById(fasilitasDTO.getFacilityCategoryId())
+            .orElseThrow(() -> new CustomExceptions(HttpStatus.NOT_FOUND,
+                "Fasilitas dengan ID " + fasilitasDTO.getFacilityCategoryId() + " tidak ditemukan", null));
+        UnitFacilityModel unitFacility = null;
+        if (fasilitasDTO.getFacilityId() != null && unit.getFacilities() != null) {
+          unitFacility = unit.getFacilities().stream()
+            .filter(uf -> uf.getId() != null && uf.getId().equals(fasilitasDTO.getFacilityId()))
+            .findFirst().orElse(null);
+        }
+        if (unitFacility != null) {
+          // Update existing
+          unitFacility.setQuantity(fasilitasDTO.getQuantity());
+          unitFacility.setNotes(fasilitasDTO.getNotes());
+          updatedFacilities.add(unitFacility);
+        } else {
+          // Insert new
+          unitFacility = new UnitFacilityModel();
+          unitFacility.setUnit(unit);
+          unitFacility.setFacilityCategory(facilityCategory);
+          unitFacility.setQuantity(fasilitasDTO.getQuantity());
+          unitFacility.setNotes(fasilitasDTO.getNotes());
+          updatedFacilities.add(unitFacility);
+        }
+      }
+      unit.setFacilities(updatedFacilities);
     }
     unitRepository.save(unit);
     return new ApiResponse<>(true, "unit berhasil diperbarui!", UnitDetailDTO.mapToDTO(unit));

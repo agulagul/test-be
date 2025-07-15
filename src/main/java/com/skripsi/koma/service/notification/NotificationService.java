@@ -13,11 +13,13 @@ import com.skripsi.koma.dto.notification.NotificationDTO;
 import com.skripsi.koma.enums.BillingStatus;
 import com.skripsi.koma.model.billing.BillingModel;
 import com.skripsi.koma.model.notification.NotificationModel;
+import com.skripsi.koma.model.property.PropertyKeeperModel;
 import com.skripsi.koma.model.property.PropertyModel;
 import com.skripsi.koma.model.unit.UnitModel;
 import com.skripsi.koma.model.user.UserModel;
 import com.skripsi.koma.repository.billing.BillingRepository;
 import com.skripsi.koma.repository.notification.NotificationRepository;
+import com.skripsi.koma.repository.property.PropertyKeeperRepository;
 import com.skripsi.koma.repository.property.PropertyRepository;
 import com.skripsi.koma.repository.unit.UnitRepository;
 import com.skripsi.koma.service.user.UserService;
@@ -34,6 +36,7 @@ public class NotificationService {
     private final UnitRepository unitRepository;
     private final BillingRepository billingRepository;
     private final UserService userService;
+    private final PropertyKeeperRepository propertyKeeperRepository;
 
     public ApiResponse<List<NotificationDTO>> getAllByPropertyId(Long propertyId) {
         List<NotificationModel> notificationList = notificationRepository.findByPropertyId(propertyId);
@@ -46,13 +49,74 @@ public class NotificationService {
 
     public ApiResponse<List<NotificationDTO>> getAllByUserId() {
         UserModel user = userService.getCurrentUser();
-        List<NotificationModel> notificationList = notificationRepository.findByUserId(user.getId());
-        if (notificationList.isEmpty()) {
-            throw new CustomExceptions(HttpStatus.NOT_FOUND, "Notifikasi tidak ditemukan", null);
+        String userRole = user.getRoleId().getRoleName().name();
+        List<NotificationModel> notificationList = new ArrayList<>();
+
+        // Notifikasi berdasarkan user id (langsung)
+        notificationList.addAll(notificationRepository.findByUserId(user.getId()));
+
+        if (userRole.equals("PEMILIK_KOS")) {
+            // Ambil semua property yang dimiliki
+            List<PropertyModel> properties = propertyRepository.findAllByOwnerId(user.getId());
+            List<Long> propertyIds = properties.stream().map(PropertyModel::getId).toList();
+            if (!propertyIds.isEmpty()) {
+                List<NotificationModel> propertyNotifs = notificationRepository.findByPropertyIdIn(propertyIds);
+                propertyNotifs.removeIf(n -> n.getUser() != null);
+                notificationList.addAll(propertyNotifs);
+                // Ambil semua unit dari property yang dimiliki
+                List<UnitModel> units = unitRepository.findAllByPropertyIdIn(propertyIds);
+                List<Long> unitIds = units.stream().map(UnitModel::getId).toList();
+                if (!unitIds.isEmpty()) {
+                    List<NotificationModel> unitNotifs = notificationRepository.findByUnitIdIn(unitIds);
+                    unitNotifs.removeIf(n -> n.getUser() != null);
+                    notificationList.addAll(unitNotifs);
+                }
+            }
+        } else if (userRole.equals("PENJAGA_KOS")) {
+            // Ambil semua property yang dijaga
+            List<PropertyKeeperModel> keepers = propertyKeeperRepository.findAllByKeeperId(user.getId());
+            List<Long> propertyIds = keepers.stream().map(pk -> pk.getProperty().getId()).distinct().toList();
+            if (!propertyIds.isEmpty()) {
+                List<NotificationModel> propertyNotifs = notificationRepository.findByPropertyIdIn(propertyIds);
+                propertyNotifs.removeIf(n -> n.getUser() != null);
+                notificationList.addAll(propertyNotifs);
+                // Ambil semua unit dari property yang dijaga
+                List<UnitModel> units = unitRepository.findAllByPropertyIdIn(propertyIds);
+                List<Long> unitIds = units.stream().map(UnitModel::getId).toList();
+                if (!unitIds.isEmpty()) {
+                    List<NotificationModel> unitNotifs = notificationRepository.findByUnitIdIn(unitIds);
+                    unitNotifs.removeIf(n -> n.getUser() != null);
+                    notificationList.addAll(unitNotifs);
+                }
+            }
+        } else if (userRole.equals("PENGHUNI")) {
+            // Ambil unit yang dihuni user
+            List<UnitModel> units = unitRepository.findAllByOccupantId(user.getId());
+            List<Long> unitIds = units.stream().map(UnitModel::getId).toList();
+            List<Long> propertyIds = units.stream().map(unit -> unit.getProperty().getId()).distinct().toList();
+            if (!propertyIds.isEmpty()) {
+                List<NotificationModel> propertyNotifs = notificationRepository.findByPropertyIdIn(propertyIds);
+                propertyNotifs.removeIf(n -> n.getUser() != null);
+                notificationList.addAll(propertyNotifs);
+            }
+            if (!unitIds.isEmpty()) {
+                List<NotificationModel> unitNotifs = notificationRepository.findByUnitIdIn(unitIds);
+                unitNotifs.removeIf(n -> n.getUser() != null);
+                notificationList.addAll(unitNotifs);
+            }
         }
+
+        // Hilangkan duplikat notifikasi (berdasarkan id)
+        List<Long> seenIds = new ArrayList<>();
         List<NotificationDTO> dtoList = new ArrayList<>();
         for (NotificationModel notification : notificationList) {
-            dtoList.add(NotificationDTO.mapToDTO(notification));
+            if (!seenIds.contains(notification.getId())) {
+                dtoList.add(NotificationDTO.mapToDTO(notification));
+                seenIds.add(notification.getId());
+            }
+        }
+        if (dtoList.isEmpty()) {
+            throw new CustomExceptions(HttpStatus.NOT_FOUND, "Notifikasi tidak ditemukan", null);
         }
         return new ApiResponse<>(true, "Daftar notifikasi berhasil diambil", dtoList);
     }
@@ -67,8 +131,10 @@ public class NotificationService {
     public ApiResponse<NotificationDTO> createNotification(NotificationDTO notificationRequest) {
         NotificationModel notification = new NotificationModel();
         UserModel user = userService.getCurrentUser();
-        UserModel recipient = userService.getUserById(notificationRequest.getUserId());
-        notification.setUser(recipient);
+        if(notificationRequest.getUserId() != null) {
+          UserModel recipient = userService.getUserById(notificationRequest.getUserId());
+          notification.setUser(recipient);
+        }
         if(notificationRequest.getPropertyId() != null) {
             PropertyModel property = propertyRepository.findById(notificationRequest.getPropertyId()).orElse(null);
             notification.setProperty(property);
@@ -80,6 +146,10 @@ public class NotificationService {
         if(notificationRequest.getBillingId() != null) {
             BillingModel billingModel = billingRepository.findById(notificationRequest.getBillingId()).orElse(null);
             notification.setBilling(billingModel);
+        }
+        if(notificationRequest.getPropertyKeeperId() != null) {
+            PropertyKeeperModel propertyKeeper = propertyKeeperRepository.findById(notificationRequest.getPropertyKeeperId()).orElse(null);
+            notification.setPropertyKeeper(propertyKeeper);
         }
         notification.setNotificationCategory(notificationRequest.getNotificationCategory());
         notification.setContent(notificationRequest.getContent());
@@ -131,6 +201,8 @@ public class NotificationService {
         for (BillingModel billing : pendingBillList) {
             NotificationDTO notificationRequest = new NotificationDTO();
             notificationRequest.setBillingId(billing.getId());
+            notificationRequest.setPropertyId(billing.getProperty().getId());
+            notificationRequest.setUnitId(billing.getUnit().getId());
             notificationRequest.setUserId(billing.getOccupant().getId());
             notificationRequest.setNotificationCategory("BILLING");
             notificationRequest.setContent("Tagihan Anda untuk pembayaran " + billing.getBillingType() + " jatuh tempo dalam waktu 7 hari.");

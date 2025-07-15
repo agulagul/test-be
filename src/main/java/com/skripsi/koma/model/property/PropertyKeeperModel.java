@@ -31,8 +31,9 @@ public class PropertyKeeperModel extends BaseModel{
     @JoinColumn(name = "keeper_id", nullable = false)
     private UserModel keeper;
     @Enumerated(EnumType.STRING)
-    @Column(name = "approval_status", nullable = false)
+    @Column(name = "approval_status")
     private ApprovalStatus approvalStatus;
-    @JoinColumn(name = "approver_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approver_id")
     private UserModel approver;
 }

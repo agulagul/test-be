@@ -15,5 +15,9 @@ public interface NotificationRepository extends BaseRepository<NotificationModel
 
     List<NotificationModel> findByBillingId(Long billingId);
 
+    List<NotificationModel> findByPropertyIdIn(List<Long> propertyIds);
+
+    List<NotificationModel> findByUnitIdIn(List<Long> unitIds);
+
 
 }

@@ -40,7 +40,7 @@ public class UnitController {
       return ResponseEntity.ok(unitService.createUnit(request));
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PEMILIK_KOS')")
     public ResponseEntity<ApiResponse<UnitDetailDTO>> updateUnit(
       @PathVariable Long id,
@@ -48,7 +48,7 @@ public class UnitController {
         return ResponseEntity.ok(unitService.updateUnit(id, request));
       }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('PEMILIK_KOS')")
     public ResponseEntity<ApiResponse<Void>> deleteUnit(@PathVariable Long id) {
         return ResponseEntity.ok(unitService.deleteUnit(id));
